@@ -140,10 +140,16 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             server.Refresh();
 
             Message = $"{server.Name}: Aktion läuft...";
-            await action(server);
-            await Task.Delay(TimeSpan.FromSeconds(2), _disposeCts.Token);
-            await _sshService.RefreshAsync(_config, [server.Model], _disposeCts.Token);
-            server.Refresh();
+            try
+            {
+                await action(server);
+                await Task.Delay(TimeSpan.FromSeconds(2), _disposeCts.Token);
+                await _sshService.RefreshAsync(_config, [server.Model], _disposeCts.Token);
+            }
+            finally
+            {
+                server.Refresh();
+            }
 
             if (oldStatus != server.Model.Status)
             {

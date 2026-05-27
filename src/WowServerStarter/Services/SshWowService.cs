@@ -83,11 +83,12 @@ public sealed class SshWowService
     {
         await WithClientAsync(config, async client =>
         {
-            var command = $"cd {Quote(server.BinPath)} && nohup ./{server.BinaryName} > ../logs/{server.LogFileName} 2>&1 < /dev/null & echo started";
-            var output = await RunAsync(client, command, cancellationToken, "Startbefehl fehlgeschlagen");
-            if (!output.Contains("started", StringComparison.OrdinalIgnoreCase))
+            await RunAsync(client, BuildStartCommand(server), cancellationToken, "Startbefehl fehlgeschlagen");
+            await WaitForStatusAsync(client, server, ServerStatus.Running, TimeSpan.FromSeconds(12), cancellationToken);
+
+            if (server.Status != ServerStatus.Running)
             {
-                throw new InvalidOperationException("Startbefehl fehlgeschlagen");
+                throw new InvalidOperationException("Startbefehl ausgeführt, Prozess läuft nicht");
             }
 
             return true;
@@ -99,14 +100,12 @@ public sealed class SshWowService
         await WithClientAsync(config, async client =>
         {
             await RunAsync(client, BuildKillCommand(server, "TERM"), cancellationToken, "Stopbefehl fehlgeschlagen");
-            await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
-            await RefreshStatusAsync(client, server, cancellationToken);
+            await WaitForStatusAsync(client, server, ServerStatus.Stopped, TimeSpan.FromSeconds(4), cancellationToken);
 
             if (server.Status == ServerStatus.Running)
             {
                 await RunAsync(client, BuildKillCommand(server, "KILL"), cancellationToken, "Stopbefehl fehlgeschlagen");
-                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-                await RefreshStatusAsync(client, server, cancellationToken);
+                await WaitForStatusAsync(client, server, ServerStatus.Stopped, TimeSpan.FromSeconds(3), cancellationToken);
             }
 
             return true;
@@ -137,6 +136,26 @@ public sealed class SshWowService
             throwOnFailure: false);
 
         server.Status = string.IsNullOrWhiteSpace(portOutput) ? ServerStatus.Stopped : ServerStatus.Running;
+    }
+
+    private static async Task WaitForStatusAsync(
+        SshClient client,
+        ServerEntry server,
+        ServerStatus expectedStatus,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        var stopAt = DateTimeOffset.UtcNow.Add(timeout);
+        do
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            await RefreshStatusAsync(client, server, cancellationToken);
+            if (server.Status == expectedStatus)
+            {
+                return;
+            }
+        }
+        while (DateTimeOffset.UtcNow < stopAt);
     }
 
     private static async Task<bool> FileExistsAsync(SshClient client, string path, CancellationToken cancellationToken)
@@ -230,6 +249,24 @@ public sealed class SshWowService
 
         var firstPart = processLine.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         return int.TryParse(firstPart, out var pid) ? pid : null;
+    }
+
+    private static string BuildStartCommand(ServerEntry server)
+    {
+        var logTarget = $"../logs/{server.LogFileName}";
+        var startWithLogs = "if command -v setsid >/dev/null 2>&1; then "
+            + "setsid nohup ./" + server.BinaryName + " > " + Quote(logTarget) + " 2>&1 < /dev/null & "
+            + "else nohup ./" + server.BinaryName + " > " + Quote(logTarget) + " 2>&1 < /dev/null & fi";
+        var startWithoutLogs = "if command -v setsid >/dev/null 2>&1; then "
+            + "setsid nohup ./" + server.BinaryName + " > /dev/null 2>&1 < /dev/null & "
+            + "else nohup ./" + server.BinaryName + " > /dev/null 2>&1 < /dev/null & fi";
+
+        return "cd " + Quote(server.BinPath)
+            + " && if [ -d ../logs ] && [ -w ../logs ]; then "
+            + startWithLogs
+            + "; else "
+            + startWithoutLogs
+            + "; fi";
     }
 
     private static string BuildFindPidCommand(ServerEntry server)
