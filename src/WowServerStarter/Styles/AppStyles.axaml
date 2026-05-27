@@ -1,0 +1,89 @@
+<Styles xmlns="https://github.com/avaloniaui">
+  <Style Selector="Border.app-shell">
+    <Setter Property="Padding" Value="14" />
+    <Setter Property="Background" Value="#19120E" />
+    <Setter Property="BorderBrush" Value="#9B7428" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="TextBlock.title">
+    <Setter Property="Foreground" Value="#F4D27B" />
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.small-title">
+    <Setter Property="FontSize" Value="16" />
+  </Style>
+
+  <Style Selector="TextBlock.subtitle">
+    <Setter Property="Foreground" Value="#BBA06D" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <Style Selector="TextBlock.footer">
+    <Setter Property="Foreground" Value="#8F7A55" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <Style Selector="Border.table">
+    <Setter Property="Background" Value="#100C0A" />
+    <Setter Property="BorderBrush" Value="#4B3820" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="6" />
+  </Style>
+
+  <Style Selector="Grid.server-row">
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Margin" Value="0,0,0,4" />
+  </Style>
+
+  <Style Selector="TextBlock.cell">
+    <Setter Property="Foreground" Value="#E8DDC6" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <Style Selector="TextBlock.strong">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.number">
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="10,3" />
+    <Setter Property="Background" Value="#241A13" />
+    <Setter Property="BorderBrush" Value="#6E5224" />
+    <Setter Property="Foreground" Value="#E8DDC6" />
+  </Style>
+
+  <Style Selector="Button.gold">
+    <Setter Property="Background" Value="#5A421E" />
+    <Setter Property="BorderBrush" Value="#D1A33D" />
+    <Setter Property="Foreground" Value="#FFE6A4" />
+  </Style>
+
+  <Style Selector="Button.small">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Padding" Value="4,2" />
+  </Style>
+
+  <Style Selector="Button.danger">
+    <Setter Property="BorderBrush" Value="#8A3E35" />
+  </Style>
+
+  <Style Selector="TextBox, NumericUpDown">
+    <Setter Property="Background" Value="#100C0A" />
+    <Setter Property="Foreground" Value="#E8DDC6" />
+    <Setter Property="BorderBrush" Value="#6E5224" />
+  </Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="#E8DDC6" />
+  </Style>
+</Styles>

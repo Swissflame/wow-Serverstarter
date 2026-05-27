@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WowServerStarter.ViewModels"
+        x:Class="WowServerStarter.Views.MainWindow"
+        x:Name="Root"
+        x:DataType="vm:MainWindowViewModel"
+        Title="wow serverstarter"
+        Width="520"
+        Height="260"
+        MinWidth="520"
+        MinHeight="260"
+        MaxWidth="520"
+        MaxHeight="260"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#15100D">
+  <Border Classes="app-shell">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="wow serverstarter" Classes="title" />
+          <TextBlock Text="{Binding Message}" Classes="subtitle" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Config" Command="{Binding OpenConfigCommand}" Classes="gold" />
+        <Button Grid.Column="2" Content="Prüfen" Command="{Binding RefreshCommand}" Classes="gold" />
+      </Grid>
+
+      <Border Grid.Row="1" Classes="table">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Servers}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ServerEntryViewModel">
+                <Grid Classes="server-row" ColumnDefinitions="14,1.25*,1*,58,78,52,52,60" ColumnSpacing="6">
+                  <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" Classes="cell strong" />
+                  <TextBlock Grid.Column="2" Text="{Binding Type}" Classes="cell" />
+                  <TextBlock Grid.Column="3" Text="{Binding Port}" Classes="cell number" />
+                  <TextBlock Grid.Column="4" Text="{Binding StatusText}" Classes="cell" Foreground="{Binding StatusBrush}" />
+                  <Button Grid.Column="5" Content="Start" Command="{Binding #Root.DataContext.StartCommand}" CommandParameter="{Binding}" Classes="small" />
+                  <Button Grid.Column="6" Content="Stop" Command="{Binding #Root.DataContext.StopCommand}" CommandParameter="{Binding}" Classes="small danger" />
+                  <Button Grid.Column="7" Content="Reboot" Command="{Binding #Root.DataContext.RebootCommand}" CommandParameter="{Binding}" Classes="small" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+        <TextBlock Text="Pfade: /opt/azeroth-server, /opt/azeroth-playerbots-server" Classes="footer" />
+        <ProgressBar Grid.Column="1" Width="88" Height="4" IsIndeterminate="{Binding IsBusy}" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WowServerStarter.ViewModels"
+        x:Class="WowServerStarter.Views.ConfigWindow"
+        x:DataType="vm:ConfigWindowViewModel"
+        Title="Config"
+        Width="360"
+        Height="330"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#15100D">
+  <Border Classes="app-shell">
+    <Grid RowDefinitions="*,Auto" RowSpacing="12">
+      <StackPanel Spacing="8">
+        <TextBlock Text="SSH-Konfiguration" Classes="title small-title" />
+        <TextBox Watermark="IP" Text="{Binding Host}" />
+        <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding SshPort}" />
+        <TextBox Watermark="Benutzername" Text="{Binding Username}" />
+        <TextBox Watermark="Passwort" PasswordChar="*" Text="{Binding Password}" />
+        <CheckBox Content="Ping-Sound" IsChecked="{Binding SoundEnabled}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Prüfintervall" Classes="cell" VerticalAlignment="Center" />
+          <NumericUpDown Width="100" Minimum="3" Maximum="300" Value="{Binding CheckIntervalSeconds}" />
+          <TextBlock Text="Sek." Classes="cell" VerticalAlignment="Center" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Abbrechen" Click="Cancel_Click" />
+        <Button Content="Speichern" Click="Save_Click" Classes="gold" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
