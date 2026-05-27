@@ -134,10 +134,17 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         await RunUiSafeAsync(async () =>
         {
-            Message = $"{server.Name}: Aktion läuft...";
             var oldStatus = server.Model.Status;
-            await action(server);
+            server.Model.Status = ServerStatus.Unknown;
+            server.Model.ProcessId = null;
             server.Refresh();
+
+            Message = $"{server.Name}: Aktion läuft...";
+            await action(server);
+            await Task.Delay(TimeSpan.FromSeconds(2), _disposeCts.Token);
+            await _sshService.RefreshAsync(_config, [server.Model], _disposeCts.Token);
+            server.Refresh();
+
             if (oldStatus != server.Model.Status)
             {
                 _soundService.Ping(_config.SoundEnabled);
@@ -184,7 +191,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            Message = $"Fehler: {ex.Message}";
+            Message = $"Fehler: {ShortError(ex)}";
         }
         finally
         {
@@ -198,6 +205,26 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private void ResetTimer()
     {
         _timer.Period = TimeSpan.FromSeconds(Math.Clamp(_config.CheckIntervalSeconds, 3, 300));
+    }
+
+    private static string ShortError(Exception exception)
+    {
+        var message = exception.Message;
+        if (message.Contains("Permission denied", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Login abgelehnt", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Passwort", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Passwort falsch";
+        }
+
+        if (message.Contains("Verbindung", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("No route", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("timed out", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Verbindung fehlgeschlagen";
+        }
+
+        return string.IsNullOrWhiteSpace(message) ? "SSH-Befehl fehlgeschlagen" : message;
     }
 
     public void Dispose()

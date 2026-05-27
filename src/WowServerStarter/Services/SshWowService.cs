@@ -6,10 +6,35 @@ namespace WowServerStarter.Services;
 
 public sealed class SshWowService
 {
-    private static readonly string[] KnownRoots =
+    private static readonly ServerEntry[] KnownServers =
     [
-        "/opt/azeroth-server",
-        "/opt/azeroth-playerbots-server"
+        new()
+        {
+            Id = "azeroth-auth",
+            Name = "AzerothCore Authserver",
+            Type = ServerType.AuthServer,
+            RootPath = "/opt/azeroth-server",
+            BinaryName = "authserver",
+            Port = 3724
+        },
+        new()
+        {
+            Id = "azeroth-world",
+            Name = "Realm 1 Worldserver",
+            Type = ServerType.WorldServer,
+            RootPath = "/opt/azeroth-server",
+            BinaryName = "worldserver",
+            Port = 8085
+        },
+        new()
+        {
+            Id = "playerbots-world",
+            Name = "Playerbots Realm Worldserver",
+            Type = ServerType.WorldServer,
+            RootPath = "/opt/azeroth-playerbots-server",
+            BinaryName = "worldserver",
+            Port = 8086
+        }
     ];
 
     public async Task<IReadOnlyList<ServerEntry>> DiscoverAsync(AppConfig config, CancellationToken cancellationToken)
@@ -17,42 +42,23 @@ public sealed class SshWowService
         return await WithClientAsync(config, async client =>
         {
             var result = new List<ServerEntry>();
-            foreach (var root in KnownRoots)
+            foreach (var known in KnownServers)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var authExists = await FileExistsAsync(client, $"{root}/bin/authserver", cancellationToken);
-                var worldExists = await FileExistsAsync(client, $"{root}/bin/worldserver", cancellationToken);
-
-                if (authExists)
+                if (await FileExistsAsync(client, known.BinaryPath, cancellationToken))
                 {
-                    result.Add(new ServerEntry
+                    var server = new ServerEntry
                     {
-                        Id = $"{root}:authserver",
-                        Name = root.Contains("playerbots", StringComparison.OrdinalIgnoreCase) ? "Playerbots Auth" : "AzerothCore Auth",
-                        Type = ServerType.AuthServer,
-                        RootPath = root,
-                        BinaryName = "authserver",
-                        Port = 3724
-                    });
+                        Id = known.Id,
+                        Name = known.Name,
+                        Type = known.Type,
+                        RootPath = known.RootPath,
+                        BinaryName = known.BinaryName,
+                        Port = known.Port
+                    };
+                    await RefreshStatusAsync(client, server, cancellationToken);
+                    result.Add(server);
                 }
-
-                if (worldExists)
-                {
-                    result.Add(new ServerEntry
-                    {
-                        Id = $"{root}:worldserver",
-                        Name = root.Contains("playerbots", StringComparison.OrdinalIgnoreCase) ? "Playerbot Realm" : "Realm 1",
-                        Type = ServerType.WorldServer,
-                        RootPath = root,
-                        BinaryName = "worldserver",
-                        Port = root.Contains("playerbots", StringComparison.OrdinalIgnoreCase) ? 8086 : 8085
-                    });
-                }
-            }
-
-            foreach (var server in result)
-            {
-                await RefreshStatusAsync(client, server, cancellationToken);
             }
 
             return result;
@@ -77,10 +83,13 @@ public sealed class SshWowService
     {
         await WithClientAsync(config, async client =>
         {
-            var command = $"cd {Quote(server.BinPath)} && nohup ./{server.BinaryName} > ../logs/{server.LogFileName} 2>&1 &";
-            await RunAsync(client, command, cancellationToken);
-            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
-            await RefreshStatusAsync(client, server, cancellationToken);
+            var command = $"cd {Quote(server.BinPath)} && nohup ./{server.BinaryName} > ../logs/{server.LogFileName} 2>&1 < /dev/null & echo started";
+            var output = await RunAsync(client, command, cancellationToken, "Startbefehl fehlgeschlagen");
+            if (!output.Contains("started", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Startbefehl fehlgeschlagen");
+            }
+
             return true;
         }, cancellationToken);
     }
@@ -89,14 +98,13 @@ public sealed class SshWowService
     {
         await WithClientAsync(config, async client =>
         {
-            var pattern = $"{server.RootPath}/bin/{server.BinaryName}";
-            await RunAsync(client, $"pkill -TERM -f {Quote(pattern)} || true", cancellationToken);
+            await RunAsync(client, BuildKillCommand(server, "TERM"), cancellationToken, "Stopbefehl fehlgeschlagen");
             await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
             await RefreshStatusAsync(client, server, cancellationToken);
 
             if (server.Status == ServerStatus.Running)
             {
-                await RunAsync(client, $"pkill -KILL -f {Quote(pattern)} || true", cancellationToken);
+                await RunAsync(client, BuildKillCommand(server, "KILL"), cancellationToken, "Stopbefehl fehlgeschlagen");
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
                 await RefreshStatusAsync(client, server, cancellationToken);
             }
@@ -108,14 +116,14 @@ public sealed class SshWowService
     public async Task RebootAsync(AppConfig config, ServerEntry server, CancellationToken cancellationToken)
     {
         await StopAsync(config, server, cancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         await StartAsync(config, server, cancellationToken);
     }
 
     private static async Task RefreshStatusAsync(SshClient client, ServerEntry server, CancellationToken cancellationToken)
     {
-        var pattern = $"{server.RootPath}/bin/{server.BinaryName}";
-        var pidOutput = await RunAsync(client, $"pgrep -f {Quote(pattern)} | head -n 1 || true", cancellationToken);
-        server.ProcessId = int.TryParse(pidOutput.Trim(), out var pid) ? pid : null;
+        var processOutput = await RunAsync(client, BuildFindPidCommand(server), cancellationToken, throwOnFailure: false);
+        server.ProcessId = TryReadPid(processOutput);
 
         if (server.ProcessId.HasValue)
         {
@@ -124,8 +132,9 @@ public sealed class SshWowService
         }
 
         var portOutput = await RunAsync(client,
-            $"(ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null || true) | grep ':{server.Port} ' || true",
-            cancellationToken);
+            $"(ss -tulpen 2>/dev/null || netstat -tulpen 2>/dev/null || true) | grep -E ':{server.Port}([^0-9]|$)' || true",
+            cancellationToken,
+            throwOnFailure: false);
 
         server.Status = string.IsNullOrWhiteSpace(portOutput) ? ServerStatus.Stopped : ServerStatus.Running;
     }
@@ -158,7 +167,19 @@ public sealed class SshWowService
         };
 
         using var client = new SshClient(connection);
-        await Task.Run(() => client.Connect(), cancellationToken);
+        try
+        {
+            await Task.Run(() => client.Connect(), cancellationToken);
+        }
+        catch (Renci.SshNet.Common.SshAuthenticationException ex)
+        {
+            throw new InvalidOperationException("Passwort falsch oder SSH-Login abgelehnt", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Verbindung fehlgeschlagen", ex);
+        }
+
         try
         {
             return await action(client);
@@ -172,7 +193,12 @@ public sealed class SshWowService
         }
     }
 
-    private static async Task<string> RunAsync(SshClient client, string command, CancellationToken cancellationToken)
+    private static async Task<string> RunAsync(
+        SshClient client,
+        string command,
+        CancellationToken cancellationToken,
+        string failureMessage = "SSH-Befehl fehlgeschlagen",
+        bool throwOnFailure = true)
     {
         return await Task.Run(() =>
         {
@@ -186,8 +212,46 @@ public sealed class SshWowService
                 combined.AppendLine(sshCommand.Error);
             }
 
+            if (throwOnFailure && sshCommand.ExitStatus != 0)
+            {
+                throw new InvalidOperationException(failureMessage);
+            }
+
             return combined.ToString();
         }, cancellationToken);
+    }
+
+    private static int? TryReadPid(string? processLine)
+    {
+        if (string.IsNullOrWhiteSpace(processLine))
+        {
+            return null;
+        }
+
+        var firstPart = processLine.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return int.TryParse(firstPart, out var pid) ? pid : null;
+    }
+
+    private static string BuildFindPidCommand(ServerEntry server)
+    {
+        return "for pid in $(pgrep -x " + Quote(server.BinaryName) + " 2>/dev/null || true); do "
+            + "exe=$(readlink -f /proc/$pid/exe 2>/dev/null || true); "
+            + "cmd=$(tr '\\0' ' ' < /proc/$pid/cmdline 2>/dev/null || true); "
+            + "if [ \"$exe\" = " + Quote(server.BinaryPath) + " ] || printf '%s' \"$cmd\" | grep -F " + Quote(server.BinaryPath) + " >/dev/null; then "
+            + "echo $pid; "
+            + "fi; "
+            + "done | head -n 1";
+    }
+
+    private static string BuildKillCommand(ServerEntry server, string signal)
+    {
+        return "for pid in $(pgrep -x " + Quote(server.BinaryName) + " 2>/dev/null || true); do "
+            + "exe=$(readlink -f /proc/$pid/exe 2>/dev/null || true); "
+            + "cmd=$(tr '\\0' ' ' < /proc/$pid/cmdline 2>/dev/null || true); "
+            + "if [ \"$exe\" = " + Quote(server.BinaryPath) + " ] || printf '%s' \"$cmd\" | grep -F " + Quote(server.BinaryPath) + " >/dev/null; then "
+            + "kill -" + signal + " $pid 2>/dev/null || true; "
+            + "fi; "
+            + "done; true";
     }
 
     private static string Quote(string value)

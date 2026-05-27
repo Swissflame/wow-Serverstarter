@@ -25,5 +25,6 @@ public sealed class ServerEntry
     public ServerStatus Status { get; set; } = ServerStatus.Unknown;
 
     public string BinPath => $"{RootPath}/bin";
+    public string BinaryPath => $"{BinPath}/{BinaryName}";
     public string LogFileName => Type == ServerType.AuthServer ? "authserver_launcher.log" : "worldserver_launcher.log";
 }

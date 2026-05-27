@@ -5,12 +5,12 @@
         x:Name="Root"
         x:DataType="vm:MainWindowViewModel"
         Title="wow serverstarter"
-        Width="520"
-        Height="260"
-        MinWidth="520"
-        MinHeight="260"
-        MaxWidth="520"
-        MaxHeight="260"
+        Width="720"
+        Height="320"
+        MinWidth="720"
+        MinHeight="320"
+        MaxWidth="720"
+        MaxHeight="320"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="#15100D">
@@ -26,24 +26,36 @@
       </Grid>
 
       <Border Grid.Row="1" Classes="table">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding Servers}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:ServerEntryViewModel">
-                <Grid Classes="server-row" ColumnDefinitions="14,1.25*,1*,58,78,52,52,60" ColumnSpacing="6">
-                  <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="1" Text="{Binding Name}" Classes="cell strong" />
-                  <TextBlock Grid.Column="2" Text="{Binding Type}" Classes="cell" />
-                  <TextBlock Grid.Column="3" Text="{Binding Port}" Classes="cell number" />
-                  <TextBlock Grid.Column="4" Text="{Binding StatusText}" Classes="cell" Foreground="{Binding StatusBrush}" />
-                  <Button Grid.Column="5" Content="Start" Command="{Binding #Root.DataContext.StartCommand}" CommandParameter="{Binding}" Classes="small" />
-                  <Button Grid.Column="6" Content="Stop" Command="{Binding #Root.DataContext.StopCommand}" CommandParameter="{Binding}" Classes="small danger" />
-                  <Button Grid.Column="7" Content="Reboot" Command="{Binding #Root.DataContext.RebootCommand}" CommandParameter="{Binding}" Classes="small" />
-                </Grid>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+        <Grid RowDefinitions="Auto,*">
+          <Grid Classes="server-header" ColumnDefinitions="14,210,90,48,74,56,56,66" ColumnSpacing="8">
+            <TextBlock Grid.Column="1" Text="Name" Classes="header-cell" />
+            <TextBlock Grid.Column="2" Text="Typ" Classes="header-cell" />
+            <TextBlock Grid.Column="3" Text="Port" Classes="header-cell number" />
+            <TextBlock Grid.Column="4" Text="Status" Classes="header-cell" />
+            <TextBlock Grid.Column="5" Text="Start" Classes="header-cell center" />
+            <TextBlock Grid.Column="6" Text="Stop" Classes="header-cell center" />
+            <TextBlock Grid.Column="7" Text="Reboot" Classes="header-cell center" />
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Servers}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ServerEntryViewModel">
+                  <Grid Classes="server-row" ColumnDefinitions="14,210,90,48,74,56,56,66" ColumnSpacing="8">
+                    <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" Classes="cell strong" />
+                    <TextBlock Grid.Column="2" Text="{Binding Type}" Classes="cell" />
+                    <TextBlock Grid.Column="3" Text="{Binding Port}" Classes="cell number" />
+                    <TextBlock Grid.Column="4" Text="{Binding StatusText}" Classes="cell" Foreground="{Binding StatusBrush}" />
+                    <Button Grid.Column="5" Content="Start" Command="{Binding #Root.DataContext.StartCommand}" CommandParameter="{Binding}" Classes="small" />
+                    <Button Grid.Column="6" Content="Stop" Command="{Binding #Root.DataContext.StopCommand}" CommandParameter="{Binding}" Classes="small danger" />
+                    <Button Grid.Column="7" Content="Reboot" Command="{Binding #Root.DataContext.RebootCommand}" CommandParameter="{Binding}" Classes="small" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
       </Border>
 
       <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
